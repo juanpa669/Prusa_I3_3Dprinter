@@ -40,7 +40,6 @@
 
 // Change EEPROM version if these are changed:
 #define EEPROM_OFFSET 100
-#define EEPROM_OFFSET_POWEROFF 800
 
 /**
  * V47 EEPROM Layout:
@@ -276,7 +275,7 @@ void MarlinSettings::postprocess() {
 #if ENABLED(EEPROM_SETTINGS)
 
   #define DUMMY_PID_VALUE 3000.0f
-  #define EEPROM_START() int eeprom_index = EEPROM_OFFSET
+  #define EEPROM_START(N) uint16_t working_crc = 0; int eeprom_index = N
   #define EEPROM_SKIP(VAR) eeprom_index += sizeof(VAR)
   #define EEPROM_WRITE(VAR) write_data(eeprom_index, (uint8_t*)&VAR, sizeof(VAR), &working_crc)
   #define EEPROM_READ(VAR) read_data(eeprom_index, (uint8_t*)&VAR, sizeof(VAR), &working_crc)
@@ -328,18 +327,15 @@ void MarlinSettings::postprocess() {
    */
   bool MarlinSettings::save() {
     float dummy = 0.0f;
-    char ver[4] = "000";
-
-    uint16_t working_crc = 0;
-
-    EEPROM_START();
-
     eeprom_error = false;
 
-    EEPROM_WRITE(ver);     // invalidate data first
+    EEPROM_START(EEPROM_OFFSET);
+
+    const char ver[4] = "000";
+    EEPROM_WRITE(ver);        // invalidate data first
     EEPROM_SKIP(working_crc); // Skip the checksum slot
 
-    working_crc = 0; // clear before first "real data"
+    working_crc = 0;          // clear before first "real data"
 
     const uint8_t esteppers = COUNT(planner.axis_steps_per_mm) - XYZ;
     EEPROM_WRITE(esteppers);
@@ -756,13 +752,11 @@ void MarlinSettings::postprocess() {
     return !eeprom_error;
   }
 
-  bool MarlinSettings::poweroff_save() {
-    uint16_t working_crc = 0;
-    EEPROM_START();
-    eeprom_index = EEPROM_OFFSET_POWEROFF;
+  #define EEPROM_OFFSET_POWEROFF (4096 - (sizeof(powerloss) + 32))
 
+  bool MarlinSettings::poweroff_save() {
+    EEPROM_START(EEPROM_OFFSET_POWEROFF);
     EEPROM_SKIP(working_crc); // Skip the checksum slot
-    working_crc = 0;
 
     // Power Loss Recovery
     EEPROM_WRITE(powerloss);
@@ -771,20 +765,21 @@ void MarlinSettings::postprocess() {
     EEPROM_WRITE(filament_runout_enabled);
 
     const uint16_t final_crc = working_crc;
-    const int eeprom_size = eeprom_index;
+    const int data_size = eeprom_index;
+
     eeprom_index = EEPROM_OFFSET_POWEROFF;
     EEPROM_WRITE(final_crc);
 
     SERIAL_ECHO_START();
-    SERIAL_ECHOPAIR("Poweroff Stored (", eeprom_size - EEPROM_OFFSET_POWEROFF);
+    SERIAL_ECHOPAIR("Poweroff Stored (", data_size - EEPROM_OFFSET_POWEROFF);
     SERIAL_ECHOPAIR(" bytes; crc ", (uint32_t)final_crc);
-    SERIAL_ECHOPAIR(")\nWrite file name: ", powerloss.P_file_name);
- }
+    SERIAL_ECHOLNPAIR(")\nWrite file name: ", powerloss.P_file_name);
+  }
 
   bool MarlinSettings::poweroff_load() {
-    uint16_t working_crc = 0, stored_crc;
-    EEPROM_START();
-    eeprom_index = EEPROM_OFFSET_POWEROFF;
+    EEPROM_START(EEPROM_OFFSET_POWEROFF);
+
+    uint16_t stored_crc;
     EEPROM_READ(stored_crc);
     working_crc = 0;
 
@@ -813,9 +808,8 @@ void MarlinSettings::postprocess() {
    * M501 - Retrieve Configuration
    */
   bool MarlinSettings::load() {
-    uint16_t working_crc = 0;
 
-    EEPROM_START();
+    EEPROM_START(EEPROM_OFFSET);
 
     char stored_ver[4];
     EEPROM_READ(stored_ver);

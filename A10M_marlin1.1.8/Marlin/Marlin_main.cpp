@@ -11074,6 +11074,61 @@ inline void gcode_M355() {
 
 #endif // MIXING_EXTRUDER
 
+//#define POWER_LOSS_RECOVERY_TEST
+
+#if ENABLED(POWER_LOSS_RECOVERY_TEST)
+
+  //
+  // TEST Power Loss Save
+  //
+  // typedef struct {
+  //   char P_file_name[13], print_dir[13];
+  //   uint16_t Z_t, T0_t, B_t;
+  //   uint32_t pos_t, E_t;
+  //   RecState recovery; // 0:idle, 1,2:recovering, 3:power outage, 4: filament out
+  // } powerloss_t;
+
+  // extern powerloss_t powerloss;
+
+  // // Filament Runout Sensors
+  // extern bool filament_runout_enabled;
+
+  inline void powerloss_report(const char * const prefix) {
+    serialprintPGM(prefix);
+    char tmp_d[32];
+    sprintf_P(tmp_d, PSTR(": S%u, Z%u, E%lu, P%lu, T%u, B%u, "), int(powerloss.recovery), powerloss.Z_t, powerloss.E_t, powerloss.pos_t, powerloss.T0_t, powerloss.B_t);
+    SERIAL_ECHO(tmp_d);
+    SERIAL_ECHO(powerloss.print_dir);
+    SERIAL_CHAR('/');
+    SERIAL_ECHOLN(powerloss.P_file_name);
+    SERIAL_ECHOLNPAIR("filament_runout_enabled = ", int(filament_runout_enabled));
+  }
+
+  inline void gcode_M920() {
+    strcpy_P(powerloss.P_file_name, PSTR("TESTFILE.GCO"));
+    strcpy_P(powerloss.print_dir, PSTR("TESTDIRN.AME"));
+    powerloss.Z_t = current_position[Z_AXIS] * 10;
+    powerloss.T0_t = 200 + 0.5;
+    powerloss.B_t = 60 + 0.5;
+    powerloss.pos_t = card.getStatus();
+    powerloss.E_t = current_position[E_AXIS];
+    powerloss.recovery = Rec_Outage;
+    filament_runout_enabled = parser.boolval('S');
+    (void)settings.poweroff_save();
+    powerloss_report(PSTR("  SAVED"));
+  }
+
+  inline void gcode_M921() {
+    ZERO(powerloss);
+    filament_runout_enabled = false;
+    powerloss_report(PSTR("CLEARED"));
+
+    (void)settings.poweroff_load();
+    powerloss_report(PSTR(" LOADED"));
+  }
+
+#endif // POWER_LOSS_RECOVERY_TEST
+
 /**
  * M999: Restart after being stopped
  *
@@ -12433,6 +12488,11 @@ void process_parsed_command() {
             gcode_M915();
             break;
         #endif
+      #endif
+
+      #if ENABLED(POWER_LOSS_RECOVERY_TEST)
+        case 920: gcode_M920(); break; // TEST Power Loss Save
+        case 921: gcode_M921(); break; // TEST Power Loss Load
       #endif
 
       #if HAS_MICROSTEPS

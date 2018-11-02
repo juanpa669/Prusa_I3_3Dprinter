@@ -612,14 +612,10 @@ uint16_t max_display_update_time = 0;
 #endif // ULTIPANEL
 
 void lcd_resume_menu_ok(void) {
-  char tmp_n[64 + 10];
-  powerloss.recovery = Rec_Idle;
-  //Config_StoreSettings();
-  //Config_RetrieveSettings();
   lcd_return_to_status();
-  // enqueuecommand("M930");
   powerloss.recovery = Rec_Recovering1;
 
+  char tmp_n[20];
   sprintf_P(tmp_n, PSTR("G92 Z%u.%u"), powerloss.Z_t / 10, powerloss.Z_t % 10);
   enqueue_and_echo_command(tmp_n);
 
@@ -631,16 +627,11 @@ void lcd_resume_menu_ok(void) {
 }
 
 void lcd_resume_menu_cancel(void) {
-  char tmp_n[64 + 10];
-  //Config_StoreSettings();
-  //Config_RetrieveSettings();
-  powerloss.recovery = Rec_Idle;
-  powerloss.P_file_name[0] = 0;
-  ZERO(powerloss.print_dir);
-  //(void)settings.poweroff_save();
-  sprintf_P(tmp_n, PSTR("M500"));
-  enqueue_and_echo_command(tmp_n);
   lcd_return_to_status();
+  powerloss.recovery = Rec_Idle;
+  powerloss.P_file_name[0] = '\0';
+  powerloss.print_dir[0] = '\0';
+  (void)settings.poweroff_save();
 }
 
 void lcd_resume_menu(void) {

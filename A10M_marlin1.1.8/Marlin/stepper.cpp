@@ -403,7 +403,7 @@ ISR(TIMER1_COMPA_vect) {
   //
   #if PIN_EXISTS(CONTINUITY)
 
-    if (!READ(CONTINUITY_PIN) && powerloss.P_file_name[0] && powerloss.recovery == Rec_Idle && print_job_timer.isRunning()) {
+    if (IS_SD_PRINTING && powerloss.recovery == Rec_Idle && !READ(CONTINUITY_PIN)) {
       //SERIAL_ECHOLNPGM("Down");
       // enqueuecommand("M929");
 

@@ -14624,12 +14624,9 @@ void setup() {
     SET_INPUT(FIL_RUNOUT2_PIN);
   #endif
 
-  if (powerloss.recovery == Rec_Outage) {
+  // Power Loss Recovery
+  if (powerloss.recovery == Rec_Outage)
     lcd_goto_resume_menu();
-    //SERIAL_ECHOLN("Rec_Outage");
-    //return;
-  }
-  //SERIAL_ECHOLNPAIR("recovery=", int(powerloss.recovery));
 }
 
 /**
@@ -14723,31 +14720,20 @@ void loop() {
           sprintf_P(tmp_y, PSTR("M32 S%lu !/%s/%s"), powerloss.pos_t, powerloss.print_dir, powerloss.P_file_name);
         else
           sprintf_P(tmp_y, PSTR("M32 S%lu !%s"), powerloss.pos_t, powerloss.P_file_name);
+        enqueue_and_echo_command(tmp_y);
 
-        //SERIAL_ECHOLNPAIR("Gco : ", tmp_y);
-
-        //ZERO(powerloss.print_dir);
         powerloss.recovery = Rec_Idle;
         (void)settings.poweroff_save();
-
-        enqueue_and_echo_command(tmp_y);
-        //SERIAL_ECHOLN(tmp_y);
         break;
     }
   }
 
   if (powerloss.recovery == Rec_FilRunout) {
-    SERIAL_ECHOLNPGM("filament out");
-    gcode_M25();
-    // sprintf_P(tmp_y,PSTR("M25"));
-    //  SERIAL_ECHOLN(tmp_y);
-    //  enqueue_and_echo_command(tmp_y);
-    ///////
-    sprintf_P(tmp_y, PSTR("G28 X"));
-    //SERIAL_ECHOLN(tmp_y);
-    enqueue_and_echo_command(tmp_y);
     powerloss.recovery = Rec_Idle;
+    SERIAL_ECHOLNPGM("filament out");
+    enqueue_and_echo_commands_P(PSTR("M25\nG28 X"));
   }
+
   endstops.report_state();
   idle();
 }
